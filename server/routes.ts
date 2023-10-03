@@ -9,6 +9,8 @@ import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
 
 class Routes {
+  // User Session
+
   @Router.get("/session")
   async getSessionUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
@@ -57,6 +59,8 @@ class Routes {
     return { msg: "Logged out!" };
   }
 
+  // Post
+
   @Router.get("/posts")
   async getPosts(author?: string) {
     let posts;
@@ -89,6 +93,8 @@ class Routes {
     await Post.isAuthor(user, _id);
     return Post.delete(_id);
   }
+
+  // Friend
 
   @Router.get("/friends")
   async getFriends(session: WebSessionDoc) {
@@ -136,6 +142,96 @@ class Routes {
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
   }
+
+  // Event
+
+  @Router.get("/events")
+  async getEvents(host?: string) {}
+
+  @Router.post("/events")
+  async createEvent(session: WebSessionDoc, content: string) {} // TODO
+
+  @Router.patch("/events/edit/:_id")
+  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+
+  @Router.delete("/events/:_id")
+  async deleteEvent(session: WebSessionDoc, _id: ObjectId) {}
+
+  @Router.patch("events/interest/add/:id")
+  async indicateEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+
+  @Router.patch("events/attendance/add/:id")
+  async indicateEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+
+  @Router.patch("events/interest/remove/:id")
+  async removeEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+
+  @Router.patch("events/attendance/remove/:id")
+  async removeEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+
+  // Location
+
+  @Router.get("/location")
+  async getLocation(session: WebSessionDoc) {}
+
+  @Router.post("/location")
+  async createLocation(source: ObjectId, address: string = "", lat: number, lon: number) {}
+
+  @Router.get("/location/content")
+  async getLocationOfContent(content: ObjectId) {}
+
+  @Router.get("/location/fromAddress")
+  async getLocationFromAddress(address: string) {}
+
+  @Router.get("/location/distance")
+  async getDistance(session: WebSessionDoc, lat: number, lon: number) {}
+
+  // Profile
+
+  @Router.get("/profile")
+  async getProfile(session: WebSessionDoc) {}
+
+  @Router.get("/profile/:user")
+  async getUserProfile(user: ObjectId) {}
+
+  @Router.post("/profile/create")
+  async createProfile(session: WebSessionDoc) {}
+
+  @Router.patch("/profile/edit")
+  async editProfile(session: WebSessionDoc, update: Partial<PostDoc>) {}
+
+  @Router.post("/profile/interests/add")
+  async addInterest(session: WebSessionDoc, interest: string) {}
+
+  @Router.delete("/profile/interests/remove")
+  async removeInterest(session: WebSessionDoc, interest: string) {}
+
+  @Router.post("/profile/add/:content_id")
+  async addContent(session: WebSessionDoc, content: ObjectId) {}
+
+  @Router.delete("/profile/remove/:content_id")
+  async removeContent(session: WebSessionDoc, content: ObjectId) {}
+
+  // Message
+
+  @Router.post("/message/:user")
+  async sendMessage(session: WebSessionDoc, text: string, files: File[]) {}
+
+  @Router.get("/message/:user")
+  async getMessages(session: WebSessionDoc) {}
+
+  // Feed
+
+  @Router.post("/feed/create")
+  async createFeed(session: WebSessionDoc) {}
+
+  @Router.get("/feed")
+  async retrieveFeed(session: WebSessionDoc) {}
+
+  // Algorithm
+
+  @Router.get("/:content/relevance")
+  async calculateRelevance(session: WebSessionDoc) {}
 }
 
 export default getExpressRouter(new Routes());
