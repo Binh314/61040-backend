@@ -85,7 +85,7 @@ const operations: operation[] = [
   },
   {
     name: "Indicate Event Interest",
-    endpoint: "/api/events/:_id/interest/add",
+    endpoint: "/api/events/:id/interest/add",
     method: "PATCH",
     fields: { id: "input" },
   },

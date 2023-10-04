@@ -224,26 +224,34 @@ class Routes {
   }
 
   @Router.patch("/events/:_id/interest/add/")
-  async indicateEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+  async indicateEventInterest(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
+    await Event.isNotHost(user, _id);
+    await Event.isNotInterested(user, _id);
     return Event.indicateInterest(user, _id);
   }
 
   @Router.patch("/events/:_id/attendance/add/")
-  async indicateEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+  async indicateEventAttendance(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
+    await Event.isNotHost(user, _id);
+    await Event.isNotAttending(user, _id);
     return Event.indicateAttendance(user, _id);
   }
 
   @Router.patch("/events/:_id/interest/remove/")
-  async removeEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+  async removeEventInterest(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
+    await Event.isNotHost(user, _id);
+    await Event.isInterested(user, _id);
     return Event.removeInterest(user, _id);
   }
 
   @Router.patch("/events/:_id/attendance/remove/")
-  async removeEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+  async removeEventAttendance(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
+    await Event.isNotHost(user, _id);
+    await Event.isAttending(user, _id);
     return Event.removeAttendance(user, _id);
   }
 
