@@ -6,6 +6,7 @@ import { Friend, Post, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
+// import { MessageDoc } from "./concepts/message";
 import Responses from "./responses";
 
 class Routes {
@@ -147,6 +148,12 @@ class Routes {
 
   @Router.get("/events")
   async getEvents(host?: string) {}
+
+  @Router.get("/events/interested")
+  async getInterestedEvents(session: WebSessionDoc) {}
+
+  @Router.get("/events/attending")
+  async getAttendingEvents(session: WebSessionDoc) {}
 
   @Router.post("/events")
   async createEvent(session: WebSessionDoc, content: string) {} // TODO
