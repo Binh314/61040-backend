@@ -147,12 +147,23 @@ class Routes {
   // Event
 
   @Router.get("/events")
-  async getEvents(host?: string) {}
+  async getEvents(host?: string) {
+    let events;
+    if (host) {
+      const id = (await User.getUserByUsername(host))._id;
+      events = await Event.getByHost(id);
+    } else {
+      events = await Event.getEvents({});
+    }
+    return Responses.events(events);
+  }
 
   @Router.post("/events/")
-  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, ageReq: number, capacity: number) {
+  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, ageReq: string, capacity: string) {
     const user = WebSession.getUser(session);
-    const created = await Event.create(user, title, description, location, ageReq, capacity);
+    const ageInt = parseInt(ageReq);
+    const capacityInt = parseInt(capacity);
+    const created = await Event.create(user, title, description, location, ageInt, capacityInt);
     return { msg: created.msg, event: await Responses.event(created.event) };
   }
 
@@ -170,67 +181,67 @@ class Routes {
     return Event.delete(_id);
   }
 
-  @Router.patch("/events/topics/add")
+  @Router.patch("/events/:_id/topics/add")
   async addEventTopic(session: WebSessionDoc, _id: ObjectId, topic: string) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return Event.addTopic(_id, topic);
   }
 
-  @Router.patch("/events/amenities/add")
+  @Router.patch("/events/:_id/amenities/add")
   async addEventAmenity(session: WebSessionDoc, _id: ObjectId, amenity: string) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return Event.addAmenity(_id, amenity);
   }
 
-  @Router.patch("/events/accommodations/add")
+  @Router.patch("/events/:_id/accommodations/add")
   async addEventAccommodation(session: WebSessionDoc, _id: ObjectId, accommodation: string) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return Event.addAccommodation(_id, accommodation);
   }
 
-  @Router.patch("/events/topics/remove")
+  @Router.patch("/events/:_id/topics/remove")
   async removeEventTopic(session: WebSessionDoc, _id: ObjectId, topic: string) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return Event.removeTopic(_id, topic);
   }
 
-  @Router.patch("/events/amenities/remove")
+  @Router.patch("/events/:_id/amenities/remove")
   async removeEventAmenity(session: WebSessionDoc, _id: ObjectId, amenity: string) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return Event.removeAmenity(_id, amenity);
   }
 
-  @Router.patch("/events/accommodations/remove")
+  @Router.patch("/events/:_id/accommodations/remove")
   async removeEventAccommodation(session: WebSessionDoc, _id: ObjectId, accommodation: string) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return Event.removeAccommodation(_id, accommodation);
   }
 
-  @Router.patch("/events/interest/add/:id")
+  @Router.patch("/events/:_id/interest/add/")
   async indicateEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
     const user = WebSession.getUser(session);
     return Event.indicateInterest(user, _id);
   }
 
-  @Router.patch("/events/attendance/add/:id")
+  @Router.patch("/events/:_id/attendance/add/")
   async indicateEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
     const user = WebSession.getUser(session);
     return Event.indicateAttendance(user, _id);
   }
 
-  @Router.patch("/events/interest/remove/:id")
+  @Router.patch("/events/:_id/interest/remove/")
   async removeEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
     const user = WebSession.getUser(session);
     return Event.removeInterest(user, _id);
   }
 
-  @Router.patch("/events/attendance/remove/:id")
+  @Router.patch("/events/:_id/attendance/remove/")
   async removeEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
     const user = WebSession.getUser(session);
     return Event.removeAttendance(user, _id);
@@ -293,6 +304,12 @@ class Routes {
     const user = WebSession.getUser(session);
     const toId = (await User.getUserByUsername(otherUser))._id;
     return await Message.getConversation(user, toId);
+  }
+
+  @Router.get("/message/all")
+  async getAllMessages(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Message.getMessages({ $or: [{ from: user }, { to: user }] });
   }
 
   // Feed
