@@ -1,5 +1,7 @@
 import { User } from "./app";
+import { EventDoc } from "./concepts/event";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friend";
+import { MessageDoc } from "./concepts/message";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/post";
 import { Router } from "./framework/router";
 
@@ -36,6 +38,38 @@ export default class Responses {
     const to = requests.map((request) => request.to);
     const usernames = await User.idsToUsernames(from.concat(to));
     return requests.map((request, i) => ({ ...request, from: usernames[i], to: usernames[i + requests.length] }));
+  }
+
+  /**
+   * Convert MessageDoc into more readable format for the frontend
+   * by converting the ids into usernames.
+   */
+  static async messages(messages: MessageDoc[]) {
+    const from = messages.map((message) => message.from);
+    const to = messages.map((message) => message.to);
+    const usernames = await User.idsToUsernames(from.concat(to));
+    return messages.map((message, i) => ({ ...message, from: usernames[i], to: usernames[i + messages.length] }));
+  }
+
+  /**
+   * Convert EventDoc into more readable format for the frontend
+   * by converting the host, attendees, and interested ids into usernames.
+   */
+  static async event(event: EventDoc | null) {
+    if (!event) return event;
+    const host = await User.getUserById(event.host);
+    const attendees = await User.idsToUsernames(event.attending);
+    const interested = await User.idsToUsernames(event.interested);
+    return { ...event, host: host.username, attending: attendees, interested: interested };
+  }
+
+  /**
+   * Convert many EventDocs into more readable format for the frontend
+   * by converting the host, attendees, and interested ids into usernames.
+   */
+  static async events(events: EventDoc[]) {
+    const hosts = await User.idsToUsernames(events.map((event) => event.host));
+    return events.map((event, i) => ({ ...event, host: hosts[i] }));
   }
 }
 

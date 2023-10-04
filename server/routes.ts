@@ -2,11 +2,12 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, User, WebSession } from "./app";
+import { Event, Friend, Post, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 // import { MessageDoc } from "./concepts/message";
+// import {EventDoc} from "./concepts/event";
 import Responses from "./responses";
 
 class Routes {
@@ -149,32 +150,92 @@ class Routes {
   @Router.get("/events")
   async getEvents(host?: string) {}
 
-  @Router.get("/events/interested")
-  async getInterestedEvents(session: WebSessionDoc) {}
-
-  @Router.get("/events/attending")
-  async getAttendingEvents(session: WebSessionDoc) {}
-
-  @Router.post("/events")
-  async createEvent(session: WebSessionDoc, content: string) {} // TODO
+  @Router.post("/events/")
+  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, ageReq: number, capacity: number) {
+    const user = WebSession.getUser(session);
+    const created = await Event.create(user, title, description, location, ageReq, capacity);
+    return { msg: created.msg, event: await Responses.event(created.event) };
+  }
 
   @Router.patch("/events/edit/:_id")
-  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return await Event.update(_id, update);
+  }
 
   @Router.delete("/events/:_id")
-  async deleteEvent(session: WebSessionDoc, _id: ObjectId) {}
+  async deleteEvent(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.delete(_id);
+  }
 
-  @Router.patch("events/interest/add/:id")
-  async indicateEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+  @Router.patch("/events/topics/add")
+  async addEventTopic(session: WebSessionDoc, _id: ObjectId, topic: string) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.addTopic(_id, topic);
+  }
 
-  @Router.patch("events/attendance/add/:id")
-  async indicateEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+  @Router.patch("/events/amenities/add")
+  async addEventAmenity(session: WebSessionDoc, _id: ObjectId, amenity: string) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.addAmenity(_id, amenity);
+  }
 
-  @Router.patch("events/interest/remove/:id")
-  async removeEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+  @Router.patch("/events/accommodations/add")
+  async addEventAccommodation(session: WebSessionDoc, _id: ObjectId, accommodation: string) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.addAccommodation(_id, accommodation);
+  }
 
-  @Router.patch("events/attendance/remove/:id")
-  async removeEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {}
+  @Router.patch("/events/topics/remove")
+  async removeEventTopic(session: WebSessionDoc, _id: ObjectId, topic: string) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.removeTopic(_id, topic);
+  }
+
+  @Router.patch("/events/amenities/remove")
+  async removeEventAmenity(session: WebSessionDoc, _id: ObjectId, amenity: string) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.removeAmenity(_id, amenity);
+  }
+
+  @Router.patch("/events/accommodations/remove")
+  async removeEventAccommodation(session: WebSessionDoc, _id: ObjectId, accommodation: string) {
+    const user = WebSession.getUser(session);
+    await Event.isHost(user, _id);
+    return Event.removeAccommodation(_id, accommodation);
+  }
+
+  @Router.patch("/events/interest/add/:id")
+  async indicateEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+    const user = WebSession.getUser(session);
+    return Event.indicateInterest(user, _id);
+  }
+
+  @Router.patch("/events/attendance/add/:id")
+  async indicateEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+    const user = WebSession.getUser(session);
+    return Event.indicateAttendance(user, _id);
+  }
+
+  @Router.patch("/events/interest/remove/:id")
+  async removeEventInterest(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+    const user = WebSession.getUser(session);
+    return Event.removeInterest(user, _id);
+  }
+
+  @Router.patch("/events/attendance/remove/:id")
+  async removeEventAttendance(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+    const user = WebSession.getUser(session);
+    return Event.removeAttendance(user, _id);
+  }
 
   // Location
 
