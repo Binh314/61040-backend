@@ -60,6 +60,18 @@ const operations: operation[] = [
     fields: { author: "input" },
   },
   {
+    name: "Send Message",
+    endpoint: "/api/message/:SendTo",
+    method: "POST",
+    fields: { SendTo: "input", text: "input" },
+  },
+  {
+    name: "See Messages",
+    endpoint: "/api/message/:TargetUser",
+    method: "GET",
+    fields: { TargetUser: "input" },
+  },
+  {
     name: "Create Post",
     endpoint: "/api/posts",
     method: "POST",

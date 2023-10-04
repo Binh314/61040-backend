@@ -2,11 +2,10 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Event, Friend, Post, User, WebSession } from "./app";
+import { Event, Friend, Message, Post, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
-// import { MessageDoc } from "./concepts/message";
 // import {EventDoc} from "./concepts/event";
 import Responses from "./responses";
 
@@ -282,11 +281,19 @@ class Routes {
 
   // Message
 
-  @Router.post("/message/:user")
-  async sendMessage(session: WebSessionDoc, text: string, files: File[]) {}
+  @Router.post("/message/:otherUser")
+  async sendMessage(session: WebSessionDoc, otherUser: string, text: string, files: string[]) {
+    const sender = WebSession.getUser(session);
+    const toId = (await User.getUserByUsername(otherUser))._id;
+    return await Message.send(sender, toId, text, files);
+  }
 
-  @Router.get("/message/:user")
-  async getMessages(session: WebSessionDoc) {}
+  @Router.get("/message/:otherUser")
+  async getMessages(session: WebSessionDoc, otherUser: string) {
+    const user = WebSession.getUser(session);
+    const toId = (await User.getUserByUsername(otherUser))._id;
+    return await Message.getConversation(user, toId);
+  }
 
   // Feed
 

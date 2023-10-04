@@ -11,7 +11,7 @@ export interface MessageDoc extends BaseDoc {
 export default class MessageConcept {
   public readonly messages = new DocCollection<MessageDoc>("messages");
 
-  async send(from: ObjectId, to: ObjectId, text: string, files: string[]) {
+  async send(from: ObjectId, to: ObjectId, text: string, files: string[] = []) {
     const _id = await this.messages.createOne({ from, to, text, files });
     return { msg: "Message successfully created", message: await this.messages.readOne({ _id }) };
   }
