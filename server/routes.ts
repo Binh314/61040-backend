@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Event, Friend, Message, Post, User, WebSession } from "./app";
+import { Event, Friend, Location, Message, Post, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
@@ -266,8 +266,10 @@ class Routes {
   @Router.get("/location/content")
   async getLocationOfContent(content: ObjectId) {}
 
-  @Router.get("/location/fromAddress")
-  async getLocationFromAddress(address: string) {}
+  @Router.get("/location/address")
+  async getLocationFromAddress(address: string) {
+    return await Location.getAddressLocation(address);
+  }
 
   @Router.get("/location/distance")
   async getDistance(session: WebSessionDoc, lat: number, lon: number) {}

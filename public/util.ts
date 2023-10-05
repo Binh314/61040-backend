@@ -54,6 +54,12 @@ const operations: operation[] = [
     fields: { username: "input" },
   },
   {
+    name: "Get Location from Address",
+    endpoint: "/api/location/address",
+    method: "GET",
+    fields: { address: "input" },
+  },
+  {
     name: "Get Events (empty for all)",
     endpoint: "/api/events",
     method: "GET",
