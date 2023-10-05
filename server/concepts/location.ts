@@ -1,6 +1,16 @@
+import { ObjectId } from "mongodb";
+import DocCollection, { BaseDoc } from "../framework/doc";
 import { NotFoundError } from "./errors";
 
+export interface LocationDoc extends BaseDoc {
+  poi: ObjectId;
+  address: string;
+  location: JSON;
+}
+
 export default class LocationConcept {
+  public readonly posts = new DocCollection<LocationDoc>("locations");
+
   async getAddressLocation(address: string) {
     // Using Google API
     const myAPIKey = process.env.GOOGLE_API_KEY;
