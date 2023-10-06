@@ -10,6 +10,8 @@ export interface EventDoc extends BaseDoc {
   location: string;
   ageReq: number;
   capacity: number;
+  startTime: Date;
+  endTime: Date;
   topics: string[];
   amenities: string[];
   accommodations: string[];
@@ -22,7 +24,7 @@ export default class EventConcept {
 
   async create(host: ObjectId, title: string, description: string, location: string, ageReq: number, capacity: number) {
     const _id = await this.events.createOne({ host, title, description, location, ageReq, capacity, topics: [], amenities: [], accommodations: [], interested: [], attending: [] });
-    return { msg: "Event successfully created!", event: await this.events.readOne({ _id }) };
+    return { msg: "Event successfully created!", id: _id, event: await this.events.readOne({ _id }) };
   }
 
   async getEvents(query: Filter<EventDoc>) {

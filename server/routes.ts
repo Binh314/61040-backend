@@ -47,15 +47,29 @@ class Routes {
     return await User.delete(user);
   }
 
-  @Router.post("/login")
-  async logIn(session: WebSessionDoc, username: string, password: string) {
+  @Router.post("/login/address")
+  async logInWithAddress(session: WebSessionDoc, username: string, password: string, address: string) {
     const u = await User.authenticate(username, password);
+    const location = await Location.getAddressLocation(address);
+    Location.createLocation(u._id, "user", location.lat, location.lon);
+    WebSession.start(session, u._id);
+    return { msg: "Logged in!" };
+  }
+
+  @Router.post("/login/coords")
+  async logInWithCoords(session: WebSessionDoc, username: string, password: string, latitude: string, longitude: string) {
+    const u = await User.authenticate(username, password);
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    Location.createLocation(u._id, "user", lat, lon);
     WebSession.start(session, u._id);
     return { msg: "Logged in!" };
   }
 
   @Router.post("/logout")
   async logOut(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    Location.deleteLocation(user);
     WebSession.end(session);
     return { msg: "Logged out!" };
   }
@@ -74,10 +88,25 @@ class Routes {
     return Responses.posts(posts);
   }
 
+  @Router.get("/posts/nearby")
+  async getNearbyPosts(session: WebSessionDoc, radius: string) {
+    let posts;
+    let distance = 10;
+    if (radius) distance = parseFloat(radius);
+    const user = WebSession.getUser(session);
+    const locations = await Location.getNearbyLocations(user, "post", distance);
+    const postIds = locations.map((loc) => loc.poi);
+    const query = { _id: { $in: postIds } };
+    posts = await Post.getPosts(query);
+    return Responses.posts(posts);
+  }
+
   @Router.post("/posts")
   async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
     const user = WebSession.getUser(session);
+    const location = await Location.getLocation(user);
     const created = await Post.create(user, content, options);
+    await Location.createLocation(created.id, "post", location.lat, location.lon);
     return { msg: created.msg, post: await Responses.post(created.post) };
   }
 
@@ -92,6 +121,7 @@ class Routes {
   async deletePost(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
+    await Location.deleteLocation(_id);
     return Post.delete(_id);
   }
 
@@ -163,7 +193,9 @@ class Routes {
     const user = WebSession.getUser(session);
     const ageInt = parseInt(ageReq);
     const capacityInt = parseInt(capacity);
+    const loc = await Location.getAddressLocation(location);
     const created = await Event.create(user, title, description, location, ageInt, capacityInt);
+    Location.createLocation(created.id, "event", loc.lat, loc.lon, location);
     return { msg: created.msg, event: await Responses.event(created.event) };
   }
 
@@ -258,21 +290,31 @@ class Routes {
   // Location
 
   @Router.get("/location")
-  async getLocation(session: WebSessionDoc) {}
+  async getLocation(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const location = Location.getLocation(user);
+    return location;
+  }
 
-  @Router.post("/location")
-  async createLocation(source: ObjectId, address: string = "", lat: number, lon: number) {}
+  @Router.get("/location/poi/:poi")
+  async getLocationFromID(poi: string) {
+    // const user = await User.getUserById(poi);
+    // const id = user._id;
+    const locations = Location.getLocation(new ObjectId(poi));
+    return locations;
+  }
 
-  @Router.get("/location/content")
-  async getLocationOfContent(content: ObjectId) {}
+  @Router.get("/location/distance/:poi")
+  async getDistance(session: WebSessionDoc, poi: string) {
+    const user = WebSession.getUser(session);
+    const distance = Location.getDistance(user, new ObjectId(poi));
+    return distance;
+  }
 
   @Router.get("/location/address")
   async getLocationFromAddress(address: string) {
     return await Location.getAddressLocation(address);
   }
-
-  @Router.get("/location/distance")
-  async getDistance(session: WebSessionDoc, lat: number, lon: number) {}
 
   // Profile
 

@@ -24,10 +24,16 @@ const operations: operation[] = [
     fields: { username: "input", password: "input" },
   },
   {
-    name: "Login",
-    endpoint: "/api/login",
+    name: "Login with Address",
+    endpoint: "/api/login/address",
     method: "POST",
-    fields: { username: "input", password: "input" },
+    fields: { username: "input", password: "input", address: "input" },
+  },
+  {
+    name: "Login with Coordinates",
+    endpoint: "/api/login/coords",
+    method: "POST",
+    fields: { username: "input", password: "input", latitude: "input", longitude: "input" },
   },
   {
     name: "Logout",
@@ -54,6 +60,24 @@ const operations: operation[] = [
     fields: { username: "input" },
   },
   {
+    name: "Get Current Location",
+    endpoint: "/api/location",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Location from Id",
+    endpoint: "/api/location/poi/:id",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
+    name: "Get Distance To (in meters)",
+    endpoint: "/api/location/distance/:destinationId",
+    method: "GET",
+    fields: { destinationId: "input" },
+  },
+  {
     name: "Get Location from Address",
     endpoint: "/api/location/address",
     method: "GET",
@@ -70,6 +94,12 @@ const operations: operation[] = [
     endpoint: "/api/posts",
     method: "GET",
     fields: { author: "input" },
+  },
+  {
+    name: "Get Nearby Posts (empty for 10km)",
+    endpoint: "/api/posts/nearby",
+    method: "GET",
+    fields: { radius: "input" },
   },
   {
     name: "Get Messages with User",

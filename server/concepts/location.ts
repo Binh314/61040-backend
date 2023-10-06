@@ -1,15 +1,73 @@
-import { ObjectId } from "mongodb";
+import { Filter, ObjectId } from "mongodb";
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { NotFoundError } from "./errors";
+import { NotAllowedError, NotFoundError } from "./errors";
 
 export interface LocationDoc extends BaseDoc {
   poi: ObjectId;
+  type: string;
   address: string;
-  location: JSON;
+  location: {
+    lat: number;
+    lon: number;
+  };
 }
 
 export default class LocationConcept {
-  public readonly posts = new DocCollection<LocationDoc>("locations");
+  public readonly locations = new DocCollection<LocationDoc>("locations");
+
+  async hasLocation(poi: ObjectId) {
+    const location = await this.locations.readOne({ poi });
+    if (!location) throw new NotAllowedError("POI does not have a location.");
+  }
+
+  async hasNoLocation(poi: ObjectId) {
+    const location = await this.locations.readOne({ poi });
+    if (location) throw new NotAllowedError("POI already has a location.");
+  }
+
+  async createLocation(poi: ObjectId, type: string, lat: number, lon: number, address: string = "") {
+    const existingLocation = await this.locations.readOne({ poi });
+    const location = { lat, lon };
+    if (existingLocation) return this.locations.updateOne({ poi }, { type, location, address });
+    const _id = await this.locations.createOne({ poi, type, location, address });
+    return { msg: "Post successfully created!", location: await this.locations.readOne({ _id }) };
+  }
+
+  async deleteLocation(poi: ObjectId) {
+    await this.locations.deleteOne({ poi });
+    return { msg: "Location deleted successfully!" };
+  }
+
+  async updateLocation(poi: ObjectId, update: Partial<LocationDoc>) {
+    await this.locations.updateOne({ poi }, update);
+    return { msg: "Location successfully updated!", location: await this.locations.readOne({ poi }) };
+  }
+
+  async getLocation(poi: ObjectId) {
+    const location = await this.locations.readOne({ poi });
+    if (!location) throw new NotFoundError("Location for POI Not Found");
+    return { lat: location.location.lat, lon: location.location.lon };
+  }
+
+  async getLocations(query: Filter<LocationDoc>) {
+    const locations = await this.locations.readMany(query);
+    return locations;
+  }
+
+  async getNearbyLocations(poi: ObjectId, type: string, radius: number) {
+    const location = await this.getLocation(poi);
+    const locations = await this.getLocations({ type });
+    const nearbyLocations = locations.filter((loc: LocationDoc) => {
+      return this.cosineDistanceBetweenPoints(location, loc.location) <= radius * 1000;
+    });
+    return nearbyLocations;
+  }
+
+  async getDistance(from: ObjectId, to: ObjectId) {
+    const fromLocation = await this.getLocation(from);
+    const toLocation = await this.getLocation(to);
+    return this.cosineDistanceBetweenPoints(fromLocation, toLocation);
+  }
 
   async getAddressLocation(address: string) {
     // Using Google API
@@ -22,14 +80,18 @@ export default class LocationConcept {
       throw new NotFoundError("Address Not Found");
     }
     const location = results.results[0].geometry.location;
-    return location;
+    return { lat: location.lat, lon: location.lng };
   }
 
   /**
    * Source: https://henry-rossiter.medium.com/calculating-distance-between-geographic-coordinates-with-javascript-5f3097b61898
    */
-  private cosineDistanceBetweenPoints(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3;
+  private cosineDistanceBetweenPoints(fromLocation: { lat: number; lon: number }, toLocation: { lat: number; lon: number }) {
+    const lat1 = fromLocation.lat;
+    const lon1 = fromLocation.lon;
+    const lat2 = toLocation.lat;
+    const lon2 = toLocation.lon;
+    const R = 6371e3; // meters
     const p1 = (lat1 * Math.PI) / 180;
     const p2 = (lat2 * Math.PI) / 180;
     const deltaP = p2 - p1;
