@@ -2,12 +2,14 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Event, Friend, Location, Message, Post, User, WebSession } from "./app";
+import { Event, Friend, Location, Message, Post, Profile, User, WebSession } from "./app";
+import { NotFoundError } from "./concepts/errors";
+import { EventDoc } from "./concepts/event";
+import { LocationDoc } from "./concepts/location";
 import { PostDoc, PostOptions } from "./concepts/post";
+import { ProfileDoc } from "./concepts/profile";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
-// import {EventDoc} from "./concepts/event";
-import { LocationDoc } from "./concepts/location";
 import Responses from "./responses";
 
 class Routes {
@@ -32,7 +34,10 @@ class Routes {
   @Router.post("/users")
   async createUser(session: WebSessionDoc, username: string, password: string) {
     WebSession.isLoggedOut(session);
-    return await User.create(username, password);
+    const user = await User.create(username, password);
+    if (!user.user) throw new Error("User register error"); // should not ever be thrown
+    Profile.create(user.user._id);
+    return user;
   }
 
   @Router.patch("/users")
@@ -44,6 +49,7 @@ class Routes {
   @Router.delete("/users")
   async deleteUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
+    Profile.delete(user);
     WebSession.end(session);
     return await User.delete(user);
   }
@@ -102,9 +108,13 @@ class Routes {
   @Router.post("/posts")
   async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
     const user = WebSession.getUser(session);
+
     const location = await Location.get(user);
     const created = await Post.create(user, content, options);
     await Location.create(created.id, "post", location.lat, location.lon);
+
+    Profile.addPost(user, created.id);
+
     return { msg: created.msg, post: await Responses.post(created.post) };
   }
 
@@ -119,7 +129,10 @@ class Routes {
   async deletePost(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
+
     await Location.delete(_id);
+
+    await Profile.removePost(user, _id);
     return Post.delete(_id);
   }
 
@@ -186,6 +199,16 @@ class Routes {
     return Responses.events(events);
   }
 
+  @Router.get("/events/nearby")
+  async getNearbyEvents(session: WebSessionDoc, radius: string) {
+    const user = WebSession.getUser(session);
+    const locations: LocationDoc[] = await Location.getNearby(user, "event", radius ? parseFloat(radius) : 10);
+    const eventIds = locations.map((loc) => loc.poi);
+    const query = { _id: { $in: eventIds } };
+    const events = await Event.getEvents(query);
+    return Responses.events(events);
+  }
+
   @Router.post("/events/")
   async createEvent(session: WebSessionDoc, title: string, description: string, location: string, ageReq: string, capacity: string) {
     const user = WebSession.getUser(session);
@@ -198,7 +221,7 @@ class Routes {
   }
 
   @Router.patch("/events/edit/:_id")
-  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<EventDoc>) {
     const user = WebSession.getUser(session);
     await Event.isHost(user, _id);
     return await Event.update(_id, update);
@@ -317,28 +340,42 @@ class Routes {
   // Profile
 
   @Router.get("/profile")
-  async getProfile(session: WebSessionDoc) {}
+  async getProfile(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const profile = Profile.getProfile(user);
+    return profile;
+  }
 
   @Router.get("/profile/:user")
-  async getUserProfile(user: ObjectId) {}
-
-  @Router.post("/profile/create")
-  async createProfile(session: WebSessionDoc) {}
+  async getUserProfile(user: ObjectId) {
+    const person = await User.getUserById(user);
+    if (!person) throw new NotFoundError("User not found");
+    const profile = Profile.getProfile(person._id);
+    return profile;
+  }
 
   @Router.patch("/profile/edit")
-  async editProfile(session: WebSessionDoc, update: Partial<PostDoc>) {}
+  async editProfile(session: WebSessionDoc, update: Partial<ProfileDoc>, birthdate: string) {
+    const user = WebSession.getUser(session);
+    const date = new Date(Date.parse(birthdate));
+    update.birthdate = date;
+    await Profile.update(user, update);
+    return { msg: "Profile successfully updated." };
+  }
 
-  @Router.post("/profile/interests/add")
-  async addInterest(session: WebSessionDoc, interest: string) {}
+  @Router.patch("/profile/interests/add")
+  async addInterest(session: WebSessionDoc, interest: string) {
+    const user = WebSession.getUser(session);
+    await Profile.addInterest(user, interest);
+    return { msg: "Interest added successfully" };
+  }
 
-  @Router.delete("/profile/interests/remove")
-  async removeInterest(session: WebSessionDoc, interest: string) {}
-
-  @Router.post("/profile/add/:content_id")
-  async addContent(session: WebSessionDoc, content: ObjectId) {}
-
-  @Router.delete("/profile/remove/:content_id")
-  async removeContent(session: WebSessionDoc, content: ObjectId) {}
+  @Router.patch("/profile/interests/remove")
+  async removeInterest(session: WebSessionDoc, interest: string) {
+    const user = WebSession.getUser(session);
+    await Profile.removeInterest(user, interest);
+    return { msg: "Interest removed successfully." };
+  }
 
   // Message
 
