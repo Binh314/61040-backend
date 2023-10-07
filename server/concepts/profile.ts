@@ -15,8 +15,8 @@ export interface ProfileDoc extends BaseDoc {
 
 export default class EventConcept {
   public readonly profiles = new DocCollection<ProfileDoc>("profiles");
-  async create(person: ObjectId) {
-    const _id = await this.profiles.createOne({ person, name: "", bio: "", location: "", interests: [], posts: [] });
+  async create(person: ObjectId, name: string) {
+    const _id = await this.profiles.createOne({ person, name, bio: "", location: "", interests: [], posts: [] });
     return { msg: "Profile successfully created!", id: _id, profile: await this.profiles.readOne({ _id }) };
   }
   async getProfiles(query: Filter<ProfileDoc>) {

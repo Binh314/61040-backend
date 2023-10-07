@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { Router, getExpressRouter } from "./framework/router";
 
 import { Event, Friend, Location, Message, Post, Profile, User, WebSession } from "./app";
-import { NotFoundError } from "./concepts/errors";
+import { NotAllowedError, NotFoundError } from "./concepts/errors";
 import { EventDoc } from "./concepts/event";
 import { LocationDoc } from "./concepts/location";
 import { PostDoc, PostOptions } from "./concepts/post";
@@ -36,7 +36,7 @@ class Routes {
     WebSession.isLoggedOut(session);
     const user = await User.create(username, password);
     if (!user.user) throw new Error("User register error"); // should not ever be thrown
-    Profile.create(user.user._id);
+    Profile.create(user.user._id, username);
     return user;
   }
 
@@ -49,7 +49,7 @@ class Routes {
   @Router.delete("/users")
   async deleteUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
-    Profile.delete(user);
+    Profile.delete(new ObjectId(user.toString()));
     WebSession.end(session);
     return await User.delete(user);
   }
@@ -122,6 +122,8 @@ class Routes {
   async updatePost(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
+    const location = await Location.get(new ObjectId(user.toString()));
+    Location.create(user, "post", location.lat, location.lon);
     return await Post.update(_id, update);
   }
 
@@ -209,7 +211,7 @@ class Routes {
     return Responses.events(events);
   }
 
-  @Router.post("/events/")
+  @Router.post("/events")
   async createEvent(session: WebSessionDoc, title: string, description: string, location: string, ageReq: string, capacity: string) {
     const user = WebSession.getUser(session);
     const ageInt = parseInt(ageReq);
@@ -220,11 +222,15 @@ class Routes {
     return { msg: created.msg, event: await Responses.event(created.event) };
   }
 
-  @Router.patch("/events/edit/:_id")
-  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<EventDoc>) {
+  @Router.patch("/events/:_id/edit")
+  async updateEvent(session: WebSessionDoc, _id: string, update: Partial<EventDoc>) {
     const user = WebSession.getUser(session);
-    await Event.isHost(user, _id);
-    return await Event.update(_id, update);
+    const id = new ObjectId(_id.toString());
+    await Event.isHost(user, id);
+    if (!update.location) throw new NotAllowedError("No location given.");
+    const loc = await Location.getFromAddress(update.location);
+    Location.create(id, "event", loc.lat, loc.lon);
+    return await Event.update(id, update);
   }
 
   @Router.delete("/events/:_id")
@@ -346,20 +352,25 @@ class Routes {
     return profile;
   }
 
-  @Router.get("/profile/:user")
-  async getUserProfile(user: ObjectId) {
-    const person = await User.getUserById(user);
+  @Router.get("/profile/user/:username")
+  async getUserProfile(username: string) {
+    const person = await User.getUserByUsername(username);
     if (!person) throw new NotFoundError("User not found");
     const profile = Profile.getProfile(person._id);
     return profile;
+  }
+  @Router.get("/profile/all")
+  async getAllProfiles(username: string) {
+    const profiles = Profile.getProfiles({});
+    return profiles;
   }
 
   @Router.patch("/profile/edit")
   async editProfile(session: WebSessionDoc, update: Partial<ProfileDoc>, birthdate: string) {
     const user = WebSession.getUser(session);
-    const date = new Date(Date.parse(birthdate));
-    update.birthdate = date;
+    const date = new Date(birthdate);
     await Profile.update(user, update);
+    await Profile.update(user, { birthdate: date });
     return { msg: "Profile successfully updated." };
   }
 

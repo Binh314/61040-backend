@@ -60,6 +60,42 @@ const operations: operation[] = [
     fields: { username: "input" },
   },
   {
+    name: "Get Own Profile",
+    endpoint: "api/profile",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Edit Profile",
+    endpoint: "api/profile/edit",
+    method: "PATCH",
+    fields: { update: { name: "input", bio: "input", location: "input" }, birthdate: "input" },
+  },
+  {
+    name: "Add Interest to Profile",
+    endpoint: "api/profile/interests/add",
+    method: "PATCH",
+    fields: { interest: "input" },
+  },
+  {
+    name: "Remove Interest from Profile",
+    endpoint: "api/profile/interests/remove",
+    method: "PATCH",
+    fields: { interest: "input" },
+  },
+  {
+    name: "Get All Profiles",
+    endpoint: "api/profile/all",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get User Profile",
+    endpoint: "api/profile/user/:username",
+    method: "GET",
+    fields: { username: "input" },
+  },
+  {
     name: "Get Current Location",
     endpoint: "/api/location",
     method: "GET",
@@ -144,6 +180,18 @@ const operations: operation[] = [
     fields: { id: "input" },
   },
   {
+    name: "Create Post",
+    endpoint: "/api/posts",
+    method: "POST",
+    fields: { content: "input" },
+  },
+  {
+    name: "Update Post",
+    endpoint: "/api/posts/:id",
+    method: "PATCH",
+    fields: { id: "input", update: { content: "input", options: { backgroundColor: "input" } } },
+  },
+  {
     name: "Create Event",
     endpoint: "/api/events",
     method: "POST",
@@ -151,7 +199,7 @@ const operations: operation[] = [
   },
   {
     name: "Update Event",
-    endpoint: "/api/events/edit/:id",
+    endpoint: "/api/events/:id/edit",
     method: "PATCH",
     fields: { id: "input", update: { title: "input", description: "input", location: "input", ageReq: "input", capacity: "input" } },
   },
@@ -190,18 +238,6 @@ const operations: operation[] = [
     endpoint: "/api/events/:id/accommodations/remove",
     method: "PATCH",
     fields: { id: "input", accommodation: "input" },
-  },
-  {
-    name: "Create Post",
-    endpoint: "/api/posts",
-    method: "POST",
-    fields: { content: "input" },
-  },
-  {
-    name: "Update Post",
-    endpoint: "/api/posts/:id",
-    method: "PATCH",
-    fields: { id: "input", update: { content: "input", options: { backgroundColor: "input" } } },
   },
   {
     name: "Delete Post",
