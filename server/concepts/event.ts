@@ -103,7 +103,7 @@ export default class EventConcept {
     if (!event) {
       throw new NotFoundError(`Event ${_id} does not exist!`);
     }
-    if (event.attending.filter((id: ObjectId) => id.toString() == person.toString()).length > 1) {
+    if (event.attending.filter((id: ObjectId) => id.toString() == person.toString()).length > 0) {
       throw new NotAllowedError(`Person is already attending event.`);
     }
   }
@@ -177,7 +177,7 @@ export default class EventConcept {
 
     let personStrings = attending.map((id: ObjectId) => id.toString());
     const attend_idx = personStrings.indexOf(person.toString());
-    interested.splice(attend_idx, 1);
+    attending.splice(attend_idx, 1);
 
     personStrings = interested.map((id: ObjectId) => id.toString());
     const interest_idx = personStrings.indexOf(person.toString());

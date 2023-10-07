@@ -69,7 +69,9 @@ export default class Responses {
    */
   static async events(events: EventDoc[]) {
     const hosts = await User.idsToUsernames(events.map((event) => event.host));
-    return events.map((event, i) => ({ ...event, host: hosts[i] }));
+    const attendees = await Promise.all(events.map((event) => User.idsToUsernames(event.attending)));
+    const interested = await Promise.all(events.map((event) => User.idsToUsernames(event.interested)));
+    return events.map((event, i) => ({ ...event, host: hosts[i], attending: attendees[i], interested: interested[i] }));
   }
 }
 
