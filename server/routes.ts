@@ -7,6 +7,7 @@ import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 // import {EventDoc} from "./concepts/event";
+import { LocationDoc } from "./concepts/location";
 import Responses from "./responses";
 
 class Routes {
@@ -50,8 +51,8 @@ class Routes {
   @Router.post("/login/address")
   async logInWithAddress(session: WebSessionDoc, username: string, password: string, address: string) {
     const u = await User.authenticate(username, password);
-    const location = await Location.getAddressLocation(address);
-    Location.createLocation(u._id, "user", location.lat, location.lon);
+    const location = await Location.getFromAddress(address);
+    Location.create(u._id, "user", location.lat, location.lon);
     WebSession.start(session, u._id);
     return { msg: "Logged in!" };
   }
@@ -61,7 +62,7 @@ class Routes {
     const u = await User.authenticate(username, password);
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
-    Location.createLocation(u._id, "user", lat, lon);
+    Location.create(u._id, "user", lat, lon);
     WebSession.start(session, u._id);
     return { msg: "Logged in!" };
   }
@@ -69,7 +70,7 @@ class Routes {
   @Router.post("/logout")
   async logOut(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
-    Location.deleteLocation(user);
+    Location.delete(user);
     WebSession.end(session);
     return { msg: "Logged out!" };
   }
@@ -90,23 +91,20 @@ class Routes {
 
   @Router.get("/posts/nearby")
   async getNearbyPosts(session: WebSessionDoc, radius: string) {
-    let posts;
-    let distance = 10;
-    if (radius) distance = parseFloat(radius);
     const user = WebSession.getUser(session);
-    const locations = await Location.getNearbyLocations(user, "post", distance);
+    const locations: LocationDoc[] = await Location.getNearby(user, "post", radius ? parseFloat(radius) : 10);
     const postIds = locations.map((loc) => loc.poi);
     const query = { _id: { $in: postIds } };
-    posts = await Post.getPosts(query);
+    const posts = await Post.getPosts(query);
     return Responses.posts(posts);
   }
 
   @Router.post("/posts")
   async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
     const user = WebSession.getUser(session);
-    const location = await Location.getLocation(user);
+    const location = await Location.get(user);
     const created = await Post.create(user, content, options);
-    await Location.createLocation(created.id, "post", location.lat, location.lon);
+    await Location.create(created.id, "post", location.lat, location.lon);
     return { msg: created.msg, post: await Responses.post(created.post) };
   }
 
@@ -121,7 +119,7 @@ class Routes {
   async deletePost(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
-    await Location.deleteLocation(_id);
+    await Location.delete(_id);
     return Post.delete(_id);
   }
 
@@ -193,9 +191,9 @@ class Routes {
     const user = WebSession.getUser(session);
     const ageInt = parseInt(ageReq);
     const capacityInt = parseInt(capacity);
-    const loc = await Location.getAddressLocation(location);
+    const loc = await Location.getFromAddress(location);
     const created = await Event.create(user, title, description, location, ageInt, capacityInt);
-    Location.createLocation(created.id, "event", loc.lat, loc.lon, location);
+    Location.create(created.id, "event", loc.lat, loc.lon, location);
     return { msg: created.msg, event: await Responses.event(created.event) };
   }
 
@@ -292,7 +290,7 @@ class Routes {
   @Router.get("/location")
   async getLocation(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
-    const location = Location.getLocation(user);
+    const location = Location.get(user);
     return location;
   }
 
@@ -300,7 +298,7 @@ class Routes {
   async getLocationFromID(poi: string) {
     // const user = await User.getUserById(poi);
     // const id = user._id;
-    const locations = Location.getLocation(new ObjectId(poi));
+    const locations = Location.get(new ObjectId(poi));
     return locations;
   }
 
@@ -313,7 +311,7 @@ class Routes {
 
   @Router.get("/location/address")
   async getLocationFromAddress(address: string) {
-    return await Location.getAddressLocation(address);
+    return await Location.getFromAddress(address);
   }
 
   // Profile

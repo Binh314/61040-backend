@@ -25,7 +25,7 @@ export default class LocationConcept {
     if (location) throw new NotAllowedError("POI already has a location.");
   }
 
-  async createLocation(poi: ObjectId, type: string, lat: number, lon: number, address: string = "") {
+  async create(poi: ObjectId, type: string, lat: number, lon: number, address: string = "") {
     const existingLocation = await this.locations.readOne({ poi });
     const location = { lat, lon };
     if (existingLocation) return this.locations.updateOne({ poi }, { type, location, address });
@@ -33,17 +33,18 @@ export default class LocationConcept {
     return { msg: "Post successfully created!", location: await this.locations.readOne({ _id }) };
   }
 
-  async deleteLocation(poi: ObjectId) {
+  async delete(poi: ObjectId) {
     await this.locations.deleteOne({ poi });
     return { msg: "Location deleted successfully!" };
   }
 
-  async updateLocation(poi: ObjectId, update: Partial<LocationDoc>) {
+  async update(poi: ObjectId, update: Partial<LocationDoc>) {
+    this.sanitizeUpdate(update);
     await this.locations.updateOne({ poi }, update);
     return { msg: "Location successfully updated!", location: await this.locations.readOne({ poi }) };
   }
 
-  async getLocation(poi: ObjectId) {
+  async get(poi: ObjectId) {
     const location = await this.locations.readOne({ poi });
     if (!location) throw new NotFoundError("Location for POI Not Found");
     return { lat: location.location.lat, lon: location.location.lon };
@@ -54,8 +55,8 @@ export default class LocationConcept {
     return locations;
   }
 
-  async getNearbyLocations(poi: ObjectId, type: string, radius: number) {
-    const location = await this.getLocation(poi);
+  async getNearby(poi: ObjectId, type: string, radius: number) {
+    const location = await this.get(poi);
     const locations = await this.getLocations({ type });
     const nearbyLocations = locations.filter((loc: LocationDoc) => {
       return this.cosineDistanceBetweenPoints(location, loc.location) <= radius * 1000;
@@ -63,13 +64,18 @@ export default class LocationConcept {
     return nearbyLocations;
   }
 
+  async getAtLocation(poi: ObjectId, type: string) {
+    const marginOfError = 0.1; // km
+    return this.getNearby(poi, type, marginOfError);
+  }
+
   async getDistance(from: ObjectId, to: ObjectId) {
-    const fromLocation = await this.getLocation(from);
-    const toLocation = await this.getLocation(to);
+    const fromLocation = await this.get(from);
+    const toLocation = await this.get(to);
     return this.cosineDistanceBetweenPoints(fromLocation, toLocation);
   }
 
-  async getAddressLocation(address: string) {
+  async getFromAddress(address: string) {
     // Using Google API
     const myAPIKey = process.env.GOOGLE_API_KEY;
     const geocodingUrl: string = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${myAPIKey}`;
@@ -81,6 +87,16 @@ export default class LocationConcept {
     }
     const location = results.results[0].geometry.location;
     return { lat: location.lat, lon: location.lng };
+  }
+
+  private sanitizeUpdate(update: Partial<LocationDoc>) {
+    // Make sure the update cannot change the host, interested people, or attendees
+    const prohibitedUpdates = ["poi"];
+    for (const key in update) {
+      if (prohibitedUpdates.includes(key)) {
+        throw new NotAllowedError(`Cannot update '${key}' field!`);
+      }
+    }
   }
 
   /**
