@@ -64,7 +64,29 @@ export default class EventConcept {
     const interest_idx = interests.indexOf(interest);
     interests.splice(interest_idx, 1);
     this.profiles.updateOne({ person }, { interests });
-    return { msg: "Successfully added interest to profile." };
+    return { msg: "Successfully removed interest from profile." };
+  }
+
+  async addPost(person: ObjectId, post: ObjectId) {
+    this.notHasPost(person, post);
+    const profile = await this.profiles.readOne({ person });
+    if (!profile) throw new NotFoundError(`Profile does not exist.`);
+    const posts = profile.posts;
+    posts.push(post);
+    this.profiles.updateOne({ person }, { posts });
+    return { msg: "Successfully added post to profile." };
+  }
+
+  async removePost(person: ObjectId, post: ObjectId) {
+    this.hasPost(person, post);
+    const profile = await this.profiles.readOne({ person });
+    if (!profile) throw new NotFoundError(`Profile does not exist.`);
+    const posts = profile.posts;
+    const personStrings = posts.map((id: ObjectId) => id.toString());
+    const post_idx = personStrings.indexOf(person.toString());
+    posts.splice(post_idx, 1);
+    this.profiles.updateOne({ person }, { posts });
+    return { msg: "Successfully removed post from profile." };
   }
 
   private sanitizeUpdate(update: Partial<ProfileDoc>) {
@@ -74,6 +96,24 @@ export default class EventConcept {
       if (prohibitedUpdates.includes(key)) {
         throw new NotAllowedError(`Cannot update '${key}' field!`);
       }
+    }
+  }
+  async hasPost(person: ObjectId, postId: ObjectId) {
+    const profile = await this.profiles.readOne({ person });
+    if (!profile) {
+      throw new NotFoundError(`Profile does not exist!`);
+    }
+    if (profile.posts.filter((id: ObjectId) => id.toString() == person.toString()).length === 0) {
+      throw new NotAllowedError(`Profile does not have post.`);
+    }
+  }
+  async notHasPost(person: ObjectId, postId: ObjectId) {
+    const profile = await this.profiles.readOne({ person });
+    if (!profile) {
+      throw new NotFoundError(`Profile does not exist!`);
+    }
+    if (profile.posts.filter((id: ObjectId) => id.toString() == person.toString()).length > 0) {
+      throw new NotAllowedError(`Profile already has post.`);
     }
   }
 }

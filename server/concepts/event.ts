@@ -75,7 +75,7 @@ export default class EventConcept {
       throw new NotFoundError(`Event ${_id} does not exist!`);
     }
     if (event.interested.filter((id: ObjectId) => id.toString() == person.toString()).length == 0) {
-      throw new NotFoundError(`Person not interested in event.`);
+      throw new NotAllowedError(`Person not interested in event.`);
     }
   }
   async isNotInterested(person: ObjectId, _id: ObjectId) {
@@ -84,7 +84,7 @@ export default class EventConcept {
       throw new NotFoundError(`Event ${_id} does not exist!`);
     }
     if (event.interested.filter((id: ObjectId) => id.toString() == person.toString()).length > 0) {
-      throw new NotFoundError(`Person already interested in event.`);
+      throw new NotAllowedError(`Person already interested in event.`);
     }
   }
 
@@ -94,7 +94,7 @@ export default class EventConcept {
       throw new NotFoundError(`Event ${_id} does not exist!`);
     }
     if (event.attending.filter((id: ObjectId) => id.toString() == person.toString()).length == 0) {
-      throw new NotFoundError(`Person not attending event.`);
+      throw new NotAllowedError(`Person not attending event.`);
     }
   }
 
@@ -104,11 +104,13 @@ export default class EventConcept {
       throw new NotFoundError(`Event ${_id} does not exist!`);
     }
     if (event.attending.filter((id: ObjectId) => id.toString() == person.toString()).length > 1) {
-      throw new NotFoundError(`Person is already attending event.`);
+      throw new NotAllowedError(`Person is already attending event.`);
     }
   }
 
   async indicateInterest(person: ObjectId, _id: ObjectId) {
+    this.isNotInterested(person, _id);
+
     const event = await this.events.readOne({ _id });
     if (!event) throw new NotFoundError(`Event does not exist.`);
 
@@ -126,17 +128,19 @@ export default class EventConcept {
   }
 
   async removeInterest(person: ObjectId, _id: ObjectId) {
+    this.isInterested(person, _id);
     const event = await this.events.readOne({ _id });
     if (!event) throw new NotFoundError(`Event does not exist.`);
 
     const interested = event.interested;
     const attending = event.attending;
 
-    const personStrings = interested.map((id: ObjectId) => id.toString());
+    let personStrings = interested.map((id: ObjectId) => id.toString());
     const interest_idx = personStrings.indexOf(person.toString());
     interested.splice(interest_idx, 1);
 
-    const attend_idx = attending.indexOf(person);
+    personStrings = attending.map((id: ObjectId) => id.toString());
+    const attend_idx = personStrings.indexOf(person.toString());
     if (attend_idx !== -1) attending.splice(attend_idx, 1);
 
     this.events.updateOne({ _id }, { interested: interested, attending: attending });
@@ -144,6 +148,8 @@ export default class EventConcept {
   }
 
   async indicateAttendance(person: ObjectId, _id: ObjectId) {
+    this.isNotAttending(person, _id);
+
     const event = await this.events.readOne({ _id });
     if (!event) throw new NotFoundError(`Event does not exist.`);
 
@@ -161,16 +167,19 @@ export default class EventConcept {
   }
 
   async removeAttendance(person: ObjectId, _id: ObjectId) {
+    this.isAttending(person, _id);
+
     const event = await this.events.readOne({ _id });
     if (!event) throw new NotFoundError(`Event does not exist.`);
 
     const interested = event.interested;
     const attending = event.attending;
 
-    const attend_idx = attending.indexOf(person);
-    attending.push(person);
+    let personStrings = attending.map((id: ObjectId) => id.toString());
+    const attend_idx = personStrings.indexOf(person.toString());
+    interested.splice(attend_idx, 1);
 
-    const personStrings = attending.map((id: ObjectId) => id.toString());
+    personStrings = interested.map((id: ObjectId) => id.toString());
     const interest_idx = personStrings.indexOf(person.toString());
     if (interest_idx !== -1) interested.splice(interest_idx, 1);
 
