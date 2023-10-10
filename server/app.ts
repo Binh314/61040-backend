@@ -1,3 +1,4 @@
+import AlgorithmConcept from "./concepts/algorithm";
 import EventConcept from "./concepts/event";
 import FriendConcept from "./concepts/friend";
 import LocationConcept from "./concepts/location";
@@ -16,3 +17,4 @@ export const Message = new MessageConcept();
 export const Event = new EventConcept();
 export const Location = new LocationConcept();
 export const Profile = new ProfileConcept();
+export const Algorithm = new AlgorithmConcept();

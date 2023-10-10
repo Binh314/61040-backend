@@ -46,7 +46,7 @@ export default class LocationConcept {
 
   async get(poi: ObjectId) {
     const location = await this.locations.readOne({ poi });
-    if (!location) throw new NotFoundError("Location for POI Not Found");
+    if (!location) throw new NotFoundError(`Location for ${poi} Not Found`);
     return { lat: location.location.lat, lon: location.location.lon };
   }
 

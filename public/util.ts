@@ -54,6 +54,12 @@ const operations: operation[] = [
     fields: {},
   },
   {
+    name: "Get Post Feed",
+    endpoint: "/api/feed/posts",
+    method: "GET",
+    fields: {},
+  },
+  {
     name: "Get Users (empty for all)",
     endpoint: "/api/users/:username",
     method: "GET",
@@ -94,6 +100,12 @@ const operations: operation[] = [
     endpoint: "api/profile/user/:username",
     method: "GET",
     fields: { username: "input" },
+  },
+  {
+    name: "Update Current Location",
+    endpoint: "/api/location",
+    method: "PATCH",
+    fields: { address: "input" },
   },
   {
     name: "Get Current Location",

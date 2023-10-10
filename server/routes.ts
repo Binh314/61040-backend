@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Event, Friend, Location, Message, Post, Profile, User, WebSession } from "./app";
+import { Algorithm, Event, Friend, Location, Message, Post, Profile, User, WebSession } from "./app";
 import { BadValuesError, NotFoundError } from "./concepts/errors";
 import { EventDoc } from "./concepts/event";
 import { LocationDoc } from "./concepts/location";
@@ -404,6 +404,14 @@ class Routes {
     return location;
   }
 
+  @Router.patch("/location")
+  async updateLocation(session: WebSessionDoc, address: string) {
+    const user = WebSession.getUser(session);
+    const addressLocation = await Location.getFromAddress(address);
+    await Location.update(user, { location: addressLocation });
+    return { msg: "Location updated successfully" };
+  }
+
   @Router.get("/location/poi/:poi")
   async getLocationFromID(poi: string) {
     // const user = await User.getUserById(poi);
@@ -497,10 +505,76 @@ class Routes {
   // Normal Feed
 
   @Router.get("/feed/posts")
-  async getPostFeed(session: WebSessionDoc) {}
+  async getPostFeed(session: WebSessionDoc) {
+    const user = await WebSession.getUser(session);
+
+    // getting data required for algorithm
+    const userProfile = await Profile.getProfile(user);
+    const userInterests = userProfile ? userProfile.interests : [];
+
+    const posts = await Post.getPosts({ author: { $ne: user } }); // exclude posts by user
+    const profiles = await Profile.getProfiles({ person: { $in: posts.map((post) => post.author) } });
+    const profileMap = new Map(profiles.map((profile) => [profile.person.toString(), profile]));
+
+    const postTags = new Map(
+      posts.map((post) => {
+        const profile = profileMap.get(post.author.toString());
+        const tags = profile ? profile.interests : [];
+        return [post._id.toString(), tags];
+      }),
+    );
+    const postDates = new Map(posts.map((post) => [post._id.toString(), post.dateCreated]));
+    const postMap = new Map(posts.map((post) => [post._id.toString(), post]));
+
+    const postDistances = await Location.getDistances(
+      user,
+      posts.map((post) => post._id),
+    );
+
+    // running algorithm
+    const sortedPostIds = await Algorithm.sortContent(userInterests, postTags, postDistances, postDates);
+
+    // returning sorted posts
+    const sortedPosts: PostDoc[] = [];
+    for (const id of sortedPostIds) {
+      const post = postMap.get(id.toString());
+      if (!post) throw new Error("Post id not found. Should not be thrown.");
+      sortedPosts.push(post);
+    }
+    return Responses.posts(sortedPosts);
+  }
 
   @Router.get("/feed/events")
-  async getEventFeed(session: WebSessionDoc) {}
+  async getEventFeed(session: WebSessionDoc) {
+    const user = await WebSession.getUser(session);
+
+    // getting data required for algorithm
+    const userProfile = await Profile.getProfile(user);
+    const userInterests = userProfile ? userProfile.interests : [];
+
+    const events = await Event.getEvents({ host: { $ne: user } }); // exclude posts by user
+
+    const eventDates = new Map(events.map((event) => [event._id.toString(), event.startTime]));
+    const eventMap = new Map(events.map((event) => [event._id.toString(), event]));
+    const eventTags = new Map(events.map((event) => [event._id.toString(), event.topics]));
+
+    const eventDistances = await Location.getDistances(
+      user,
+      events.map((event) => event._id),
+    );
+
+    // running algorithm
+    const sortedEventIds = await Algorithm.sortContent(userInterests, eventTags, eventDistances, eventDates);
+
+    // returning sorted posts
+    const sortedEvents: EventDoc[] = [];
+    for (const id of sortedEventIds) {
+      const event = eventMap.get(id.toString());
+      if (!event) throw new Error("Event id not found. Should not be thrown.");
+      sortedEvents.push(event);
+    }
+    return Responses.events(sortedEvents);
+  }
 
   // Event Mode Feed
   @Router.get("/feed/eventmode/posts")
