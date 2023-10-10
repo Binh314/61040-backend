@@ -126,10 +126,52 @@ const operations: operation[] = [
     fields: { host: "input" },
   },
   {
+    name: "Get Nearby Events (empty for 10km)",
+    endpoint: "/api/events/nearby",
+    method: "GET",
+    fields: { radius: "input" },
+  },
+  {
+    name: "Get Upcoming Events",
+    endpoint: "/api/events/upcoming",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Ongoing Events",
+    endpoint: "/api/events/ongoing",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Events You are Currently Attending",
+    endpoint: "/api/events/at",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Your Interested Events",
+    endpoint: "/api/events/interested",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Your Attending Events",
+    endpoint: "/api/events/attending",
+    method: "GET",
+    fields: {},
+  },
+  {
     name: "Get Posts (empty for all)",
     endpoint: "/api/posts",
     method: "GET",
     fields: { author: "input" },
+  },
+  {
+    name: "Get Post (with comments)",
+    endpoint: "/api/posts/:id",
+    method: "GET",
+    fields: { id: "input" },
   },
   {
     name: "Get Nearby Posts (empty for 10km)",
@@ -183,7 +225,7 @@ const operations: operation[] = [
     name: "Create Post",
     endpoint: "/api/posts",
     method: "POST",
-    fields: { content: "input" },
+    fields: { content: "input", replyTo: "input" },
   },
   {
     name: "Update Post",
@@ -195,13 +237,18 @@ const operations: operation[] = [
     name: "Create Event",
     endpoint: "/api/events",
     method: "POST",
-    fields: { title: "input", description: "input", location: "input", ageReq: "input", capacity: "input" },
+    fields: { title: "input", description: "input", location: "input", startTime: "input", endTime: "input", ageReq: "input", capacity: "input" },
   },
   {
     name: "Update Event",
     endpoint: "/api/events/:id/edit",
     method: "PATCH",
-    fields: { id: "input", update: { title: "input", description: "input", location: "input", ageReq: "input", capacity: "input" } },
+    fields: {
+      id: "input",
+      update: { title: "input", description: "input", location: "input", ageReq: "input", capacity: "input" },
+      startTime: "input",
+      endTime: "input",
+    },
   },
   {
     name: "Add Event Topic",

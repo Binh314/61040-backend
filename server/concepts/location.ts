@@ -65,7 +65,7 @@ export default class LocationConcept {
   }
 
   async getAtLocation(poi: ObjectId, type: string) {
-    const marginOfError = 0.1; // km
+    const marginOfError = 0.25; // km
     return this.getNearby(poi, type, marginOfError);
   }
 
@@ -83,7 +83,7 @@ export default class LocationConcept {
     const response = await fetch(geocodingUrl);
     const results = await response.json();
     if (results.results.length === 0) {
-      throw new NotFoundError("Address Not Found");
+      throw new NotFoundError("Location Not Found");
     }
     const location = results.results[0].geometry.location;
     return { lat: location.lat, lon: location.lng };

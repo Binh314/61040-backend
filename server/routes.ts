@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { Router, getExpressRouter } from "./framework/router";
 
 import { Event, Friend, Location, Message, Post, Profile, User, WebSession } from "./app";
-import { NotAllowedError, NotFoundError } from "./concepts/errors";
+import { BadValuesError, NotFoundError } from "./concepts/errors";
 import { EventDoc } from "./concepts/event";
 import { LocationDoc } from "./concepts/location";
 import { PostDoc, PostOptions } from "./concepts/post";
@@ -58,7 +58,7 @@ class Routes {
   async logInWithAddress(session: WebSessionDoc, username: string, password: string, address: string) {
     const u = await User.authenticate(username, password);
     const location = await Location.getFromAddress(address);
-    Location.create(u._id, "user", location.lat, location.lon);
+    await Location.create(u._id, "user", location.lat, location.lon);
     WebSession.start(session, u._id);
     return { msg: "Logged in!" };
   }
@@ -68,7 +68,7 @@ class Routes {
     const u = await User.authenticate(username, password);
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
-    Location.create(u._id, "user", lat, lon);
+    await Location.create(u._id, "user", lat, lon);
     WebSession.start(session, u._id);
     return { msg: "Logged in!" };
   }
@@ -95,6 +95,14 @@ class Routes {
     return Responses.posts(posts);
   }
 
+  @Router.get("/posts/:_id")
+  async getPost(_id: string) {
+    const id = new ObjectId(_id);
+    const post = await Post.getPost(id);
+    const comments = await Post.getPosts({ replyTo: id });
+    return { post: await Responses.post(post), comments: await Responses.posts(comments) };
+  }
+
   @Router.get("/posts/nearby")
   async getNearbyPosts(session: WebSessionDoc, radius: string) {
     const user = WebSession.getUser(session);
@@ -106,11 +114,13 @@ class Routes {
   }
 
   @Router.post("/posts")
-  async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
+  async createPost(session: WebSessionDoc, content: string, replyTo: string, options?: PostOptions) {
     const user = WebSession.getUser(session);
 
     const location = await Location.get(user);
-    const created = await Post.create(user, content, options);
+    let replyId = undefined;
+    if (replyTo) replyId = new ObjectId(replyTo);
+    const created = await Post.create(user, content, replyId, options);
     await Location.create(created.id, "post", location.lat, location.lon);
 
     Profile.addPost(user, created.id);
@@ -123,7 +133,7 @@ class Routes {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
     const location = await Location.get(new ObjectId(user.toString()));
-    Location.create(user, "post", location.lat, location.lon);
+    await Location.create(user, "post", location.lat, location.lon);
     return await Post.update(_id, update);
   }
 
@@ -211,26 +221,97 @@ class Routes {
     return Responses.events(events);
   }
 
+  @Router.get("/events/upcoming")
+  async getUpcomingEvents(session: WebSessionDoc) {
+    const timeNow = new Date();
+    const events = await Event.getEvents({ startTime: { $gt: timeNow } });
+    return Responses.events(events);
+  }
+
+  @Router.get("/events/ongoing")
+  async getOngoingEvents(session: WebSessionDoc) {
+    const timeNow = new Date();
+    const events = await Event.getEvents({ startTime: { $lte: timeNow }, endTime: { $gte: timeNow } });
+    return Responses.events(events);
+  }
+
+  @Router.get("/events/interested")
+  async getInterestedEvents(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const timeNow = new Date();
+    const events = await Event.getEvents({ endTime: { $gte: timeNow }, interested: { $in: [user] } });
+    return Responses.events(events);
+  }
+  @Router.get("/events/attending")
+  async getAttendingEvents(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const timeNow = new Date();
+    const events = await Event.getEvents({ endTime: { $gte: timeNow }, attending: { $in: [user] } });
+    return Responses.events(events);
+  }
+
+  /**
+   * Gets events that are ongoing and that the user is attending and at
+   */
+  @Router.get("/events/at")
+  async getCurrentEvents(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const timeNow = new Date();
+    const locations = await Location.getAtLocation(user, "event");
+    const eventIds = locations.map((location) => location.poi);
+    const query = { _id: { $in: eventIds }, startTime: { $lte: timeNow }, endTime: { $gte: timeNow }, attending: { $in: [user] } };
+    const events = await Event.getEvents(query);
+    return Responses.events(events);
+  }
+
+  /**
+   * @param location address or name of location that can be found on google maps
+   * @param startTime "yyyy/mm/dd hh:mm timezone" format. time uses 24-hour time
+   * @param endTime "yyyy/mm/dd hh:mm timezone" format. time uses 24-hour time
+   */
   @Router.post("/events")
-  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, ageReq: string, capacity: string) {
+  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, startTime: string, endTime: string, ageReq: string, capacity: string) {
     const user = WebSession.getUser(session);
     const ageInt = parseInt(ageReq);
     const capacityInt = parseInt(capacity);
     const loc = await Location.getFromAddress(location);
-    const created = await Event.create(user, title, description, location, ageInt, capacityInt);
-    Location.create(created.id, "event", loc.lat, loc.lon, location);
+
+    const startTimestamp = Date.parse(startTime);
+    const endTimestamp = Date.parse(endTime);
+    if (!startTimestamp) throw new BadValuesError("Could Not Parse Start Time");
+    if (!endTimestamp) throw new BadValuesError("Could Not Parse End Time");
+    const start = new Date(startTimestamp);
+    const end = new Date(endTimestamp);
+
+    const created = await Event.create(user, title, description, location, start, end, ageInt, capacityInt);
+    await Location.create(created.id, "event", loc.lat, loc.lon, location);
     return { msg: created.msg, event: await Responses.event(created.event) };
   }
 
+  /**
+   * @param location address or name of location that can be found on google maps
+   * @param startTime "yyyy/mm/dd hh:mm timezone" format. time uses 24-hour time
+   * @param endTime "yyyy/mm/dd hh:mm timezone" format. time uses 24-hour time
+   */
   @Router.patch("/events/:_id/edit")
-  async updateEvent(session: WebSessionDoc, _id: string, update: Partial<EventDoc>) {
+  async updateEvent(session: WebSessionDoc, _id: string, update: Partial<EventDoc>, startTime: string, endTime: string) {
     const user = WebSession.getUser(session);
     const id = new ObjectId(_id.toString());
     await Event.isHost(user, id);
-    if (!update.location) throw new NotAllowedError("No location given.");
+    if (!update.location) throw new BadValuesError("No location given.");
     const loc = await Location.getFromAddress(update.location);
-    Location.create(id, "event", loc.lat, loc.lon);
-    return await Event.update(id, update);
+    await Location.create(id, "event", loc.lat, loc.lon);
+
+    const startTimestamp = Date.parse(startTime);
+    const endTimestamp = Date.parse(endTime);
+    if (!startTimestamp) throw new BadValuesError("Could Not Parse Start Time");
+    if (!endTimestamp) throw new BadValuesError("Could Not Parse End Time");
+    const start = new Date(startTimestamp);
+    const end = new Date(endTimestamp);
+
+    const newUpdate = { title: update.title, description: update.description, location: update.location, startTime: start, endTime: end, ageReq: update.ageReq, capacity: update.capacity };
+
+    return await Event.update(id, newUpdate);
   }
 
   @Router.delete("/events/:_id")
@@ -365,6 +446,9 @@ class Routes {
     return profiles;
   }
 
+  /**
+   * @param birthdate yyyy/mm/dd format
+   */
   @Router.patch("/profile/edit")
   async editProfile(session: WebSessionDoc, update: Partial<ProfileDoc>, birthdate: string) {
     const user = WebSession.getUser(session);
@@ -410,16 +494,22 @@ class Routes {
     return await Message.getMessages({ $or: [{ from: user }, { to: user }] });
   }
 
-  // Feed
+  // Normal Feed
 
-  @Router.post("/feed/create")
-  async createFeed(session: WebSessionDoc) {}
+  @Router.get("/feed/posts")
+  async getPostFeed(session: WebSessionDoc) {}
 
-  @Router.get("/feed")
-  async retrieveFeed(session: WebSessionDoc) {}
+  @Router.get("/feed/events")
+  async getEventFeed(session: WebSessionDoc) {}
+
+  // Event Mode Feed
+  @Router.get("/feed/eventmode/posts")
+  async getPostEventFeed(session: WebSessionDoc) {}
+
+  @Router.get("/feed/eventmode/profiles")
+  async getProfileEventFeed(session: WebSessionDoc) {}
 
   // Algorithm
-
   @Router.get("/:content/relevance")
   async calculateRelevance(session: WebSessionDoc) {}
 }
