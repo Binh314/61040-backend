@@ -75,6 +75,18 @@ export default class LocationConcept {
     return this.cosineDistanceBetweenPoints(fromLocation, toLocation);
   }
 
+  async getDistances(from: ObjectId, tos: ObjectId[]) {
+    const fromLocation = await this.get(from);
+    const toLocations = await this.locations.readMany({ poi: { $in: tos } });
+    const distanceMap: Map<string, number> = new Map(); // key is object id string
+    for (const location of toLocations) {
+      const dist = this.cosineDistanceBetweenPoints(fromLocation, location.location);
+      const poi = location.poi.toString();
+      distanceMap.set(poi, dist);
+    }
+    return distanceMap;
+  }
+
   async getFromAddress(address: string) {
     // Using Google API
     const myAPIKey = process.env.GOOGLE_API_KEY;
