@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { Router, getExpressRouter } from "./framework/router";
 
 import { Algorithm, Event, Friend, Location, Message, Post, Profile, User, WebSession } from "./app";
-import { BadValuesError, NotFoundError } from "./concepts/errors";
+import { BadValuesError, NotAllowedError, NotFoundError } from "./concepts/errors";
 import { EventDoc } from "./concepts/event";
 import { LocationDoc } from "./concepts/location";
 import { PostDoc, PostOptions } from "./concepts/post";
@@ -309,7 +309,7 @@ class Routes {
     const start = new Date(startTimestamp);
     const end = new Date(endTimestamp);
 
-    const newUpdate = { title: update.title, description: update.description, location: update.location, startTime: start, endTime: end, ageReq: update.ageReq, capacity: update.capacity };
+    const newUpdate = { ...update, startTime: start, endTime: end };
 
     return await Event.update(id, newUpdate);
   }
@@ -437,21 +437,21 @@ class Routes {
   @Router.get("/profile")
   async getProfile(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
-    const profile = Profile.getProfile(user);
-    return profile;
+    const profile = await Profile.getProfile(user);
+    return Responses.profile(profile);
   }
 
   @Router.get("/profile/user/:username")
   async getUserProfile(username: string) {
     const person = await User.getUserByUsername(username);
     if (!person) throw new NotFoundError("User not found");
-    const profile = Profile.getProfile(person._id);
-    return profile;
+    const profile = await Profile.getProfile(person._id);
+    return Responses.profile(profile);
   }
   @Router.get("/profile/all")
   async getAllProfiles(username: string) {
-    const profiles = Profile.getProfiles({});
-    return profiles;
+    const profiles = await Profile.getProfiles({});
+    return Responses.profiles(profiles);
   }
 
   /**
@@ -578,10 +578,105 @@ class Routes {
 
   // Event Mode Feed
   @Router.get("/feed/eventmode/posts")
-  async getPostEventFeed(session: WebSessionDoc) {}
+  async getPostEventFeed(session: WebSessionDoc) {
+    const user = await WebSession.getUser(session);
+
+    // getting data required for algorithm
+
+    // get users attending the event(s)
+    const timeNow = new Date();
+    const ongoingEvents = await Event.getEvents({ startTime: { $lte: timeNow }, endTime: { $gte: timeNow }, $or: [{ attending: { $in: [user] } }, { host: user }] });
+    const eventsAtLocation = (await Location.getAtLocation(user, "event")).map((loc) => loc.poi.toString());
+    const attendingEvents = ongoingEvents.filter((event) => eventsAtLocation.includes(event._id.toString()));
+
+    if (attendingEvents.length === 0) throw new NotAllowedError("Not currently at an event.");
+
+    const stringAttendees = attendingEvents.map((event) => event.attending.map((id) => id.toString())).flat();
+    const locationsAtEvent = await Location.getAtLocation(user, "user");
+    const usersAtEvent = locationsAtEvent.map((loc) => loc.poi);
+
+    const usersAttendingEvent = usersAtEvent.filter((id) => stringAttendees.includes(id.toString()));
+
+    // exclude posts by user, only get posts from people attending event
+    const posts = await Post.getPosts({ $and: [{ author: { $ne: user } }, { author: { $in: usersAttendingEvent } }] });
+
+    const userProfile = await Profile.getProfile(user);
+    const userInterests = userProfile ? userProfile.interests : [];
+    const profiles = await Profile.getProfiles({ person: { $in: posts.map((post) => post.author) } });
+    const profileMap = new Map(profiles.map((profile) => [profile.person.toString(), profile]));
+
+    const postTags = new Map(
+      posts.map((post) => {
+        const profile = profileMap.get(post.author.toString());
+        const tags = profile ? profile.interests : [];
+        return [post._id.toString(), tags];
+      }),
+    );
+    const postDates = new Map(posts.map((post) => [post._id.toString(), post.dateCreated]));
+    const postMap = new Map(posts.map((post) => [post._id.toString(), post]));
+
+    const postDistances = await Location.getDistances(
+      user,
+      posts.map((post) => post._id),
+    );
+
+    // running algorithm
+    const sortedPostIds = await Algorithm.sortContent(userInterests, postTags, postDistances, postDates);
+
+    // returning sorted posts
+    const sortedPosts: PostDoc[] = [];
+    for (const id of sortedPostIds) {
+      const post = postMap.get(id.toString());
+      if (!post) throw new Error("Post id not found. Should not be thrown.");
+      sortedPosts.push(post);
+    }
+    return Responses.posts(sortedPosts);
+  }
 
   @Router.get("/feed/eventmode/profiles")
-  async getProfileEventFeed(session: WebSessionDoc) {}
+  async getProfileEventFeed(session: WebSessionDoc) {
+    const user = await WebSession.getUser(session);
+
+    // getting data required for algorithm
+
+    // get users attending the event(s)
+    const timeNow = new Date();
+    const ongoingEvents = await Event.getEvents({ startTime: { $lte: timeNow }, endTime: { $gte: timeNow }, $or: [{ attending: { $in: [user] } }, { host: user }] });
+    const eventsAtLocation = (await Location.getAtLocation(user, "event")).map((loc) => loc.poi.toString());
+    const attendingEvents = ongoingEvents.filter((event) => eventsAtLocation.includes(event._id.toString()));
+
+    if (attendingEvents.length === 0) throw new NotAllowedError("Not currently at an event.");
+
+    const stringAttendees = attendingEvents.map((event) => event.attending.map((id) => id.toString())).flat();
+    const locationsAtEvent = await Location.getAtLocation(user, "user");
+    const usersAtEvent = locationsAtEvent.map((loc) => loc.poi);
+
+    const usersAttendingEvent = usersAtEvent.filter((id) => stringAttendees.includes(id.toString()));
+
+    // exclude posts by user, only get profiles from people attending event
+    const profiles = await Profile.getProfiles({ $and: [{ person: { $ne: user } }, { person: { $in: usersAttendingEvent } }] });
+
+    const profileMap = new Map(profiles.map((profile) => [profile.person.toString(), profile]));
+
+    const userProfile = await Profile.getProfile(user);
+    const userInterests = userProfile ? userProfile.interests : [];
+    const profileTags = new Map(profiles.map((profile) => [profile.person.toString(), profile.interests]));
+    const profileDates = new Map(profiles.map((profile) => [profile.person.toString(), timeNow]));
+
+    const userDistances = await Location.getDistances(user, usersAtEvent);
+
+    // running algorithm
+    const sortedUserIds = await Algorithm.sortContent(userInterests, profileTags, userDistances, profileDates);
+
+    // returning sorted posts
+    const sortedProfiles: ProfileDoc[] = [];
+    for (const id of sortedUserIds) {
+      const profile = profileMap.get(id.toString());
+      if (!profile) throw new Error("Profile id not found. Should not be thrown.");
+      sortedProfiles.push(profile);
+    }
+    return Responses.profiles(sortedProfiles);
+  }
 
   // Algorithm
   @Router.get("/:content/relevance")

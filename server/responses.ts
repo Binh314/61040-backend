@@ -3,6 +3,7 @@ import { EventDoc } from "./concepts/event";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friend";
 import { MessageDoc } from "./concepts/message";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/post";
+import { ProfileDoc } from "./concepts/profile";
 import { Router } from "./framework/router";
 
 /**
@@ -72,6 +73,25 @@ export default class Responses {
     const attendees = await Promise.all(events.map((event) => User.idsToUsernames(event.attending)));
     const interested = await Promise.all(events.map((event) => User.idsToUsernames(event.interested)));
     return events.map((event, i) => ({ ...event, host: hosts[i], attending: attendees[i], interested: interested[i] }));
+  }
+
+  /**
+   * Convert ProfileDoc into more readable format for the frontend
+   * by converting person id into username.
+   */
+  static async profile(profile: ProfileDoc | null) {
+    if (!profile) return profile;
+    const person = await User.getUserById(profile.person);
+    return { ...profile, person: person };
+  }
+
+  /**
+   * Convert many ProfileDocs into more readable format for the frontend
+   * by converting the people ids into usernames.
+   */
+  static async profiles(profiles: ProfileDoc[]) {
+    const people = await User.idsToUsernames(profiles.map((profile) => profile.person));
+    return profiles.map((profile, i) => ({ ...profile, person: people[i] }));
   }
 }
 

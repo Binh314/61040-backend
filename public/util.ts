@@ -60,6 +60,24 @@ const operations: operation[] = [
     fields: {},
   },
   {
+    name: "Get Event Feed",
+    endpoint: "/api/feed/events",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Post Feed (Event Mode)",
+    endpoint: "/api/feed/eventmode/posts",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Profile Feed (Event Mode)",
+    endpoint: "/api/feed/eventmode/profiles",
+    method: "GET",
+    fields: {},
+  },
+  {
     name: "Get Users (empty for all)",
     endpoint: "/api/users/:username",
     method: "GET",
