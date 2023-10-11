@@ -507,7 +507,7 @@ class Routes {
     return await Message.send(sender, toId, text, filesArray);
   }
 
-  @Router.get("/message/:otherUser")
+  @Router.get("/message/user/:otherUser")
   async getMessages(session: WebSessionDoc, otherUser: string) {
     const user = WebSession.getUser(session);
     const toId = (await User.getUserByUsername(otherUser))._id;

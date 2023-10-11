@@ -73,7 +73,7 @@ const operations: operation[] = [
   },
   {
     name: "Get Messages with User",
-    endpoint: "/api/message/:TargetUser",
+    endpoint: "/api/message/user/:TargetUser",
     method: "GET",
     fields: { TargetUser: "input" },
   },
