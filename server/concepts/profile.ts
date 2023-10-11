@@ -9,8 +9,9 @@ export interface ProfileDoc extends BaseDoc {
   bio: string;
   location: string;
   interests: string[];
-  birthdate: Date;
   posts: ObjectId[];
+  birthdate?: Date;
+  photo?: string;
 }
 
 export default class EventConcept {

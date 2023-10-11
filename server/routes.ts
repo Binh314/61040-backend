@@ -470,9 +470,9 @@ class Routes {
    * @param birthdate yyyy/mm/dd format
    */
   @Router.patch("/profile/edit")
-  async editProfile(session: WebSessionDoc, update: Partial<ProfileDoc>, birthdate: string) {
+  async updateProfile(session: WebSessionDoc, update: Partial<ProfileDoc>, birthdate?: string) {
     const user = WebSession.getUser(session);
-    const date = new Date(birthdate);
+    const date = birthdate ? new Date(birthdate) : undefined;
     await Profile.update(user, update);
     await Profile.update(user, { birthdate: date });
     return { msg: "Profile successfully updated." };

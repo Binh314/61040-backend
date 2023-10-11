@@ -141,7 +141,7 @@ const operations: operation[] = [
     name: "Edit Profile",
     endpoint: "api/profile/edit",
     method: "PATCH",
-    fields: { update: { name: "input", bio: "input", location: "input" }, birthdate: "input" },
+    fields: { update: { name: "input", bio: "input", location: "input", photo: "input" }, birthdate: "input" },
   },
   {
     name: "Add Interest to Profile",
