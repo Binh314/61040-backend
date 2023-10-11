@@ -6,7 +6,7 @@ import { Algorithm, Event, Friend, Location, Message, Post, Profile, User, WebSe
 import { BadValuesError, NotAllowedError, NotFoundError } from "./concepts/errors";
 import { EventDoc } from "./concepts/event";
 import { LocationDoc } from "./concepts/location";
-import { PostDoc, PostOptions } from "./concepts/post";
+import { PostDoc } from "./concepts/post";
 import { ProfileDoc } from "./concepts/profile";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
@@ -113,14 +113,26 @@ class Routes {
     return Responses.posts(posts);
   }
 
+  /**
+   * @param files string of file urls separated by commas ","
+   * @param replyTo post ID
+   */
   @Router.post("/posts")
-  async createPost(session: WebSessionDoc, content: string, replyTo: string, options?: PostOptions) {
+  async createPost(session: WebSessionDoc, content: string, files?: string, replyTo?: string) {
     const user = WebSession.getUser(session);
 
     const location = await Location.get(user);
     let replyId = undefined;
     if (replyTo) replyId = new ObjectId(replyTo);
-    const created = await Post.create(user, content, replyId, options);
+
+    const filesArray = files
+      ? files
+          .split(",")
+          .map((e) => e.trim())
+          .filter((e) => e)
+      : [];
+
+    const created = await Post.create(user, content, filesArray, replyId);
     await Location.create(created.id, "post", location.lat, location.lon);
 
     Profile.addPost(user, created.id);
@@ -270,7 +282,7 @@ class Routes {
    * @param endTime "yyyy/mm/dd hh:mm timezone" format. time uses 24-hour time
    */
   @Router.post("/events")
-  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, startTime: string, endTime: string, ageReq: string, capacity: string) {
+  async createEvent(session: WebSessionDoc, title: string, description: string, location: string, startTime: string, endTime: string, ageReq: string, capacity: string, photo?: string) {
     const user = WebSession.getUser(session);
     const ageInt = parseInt(ageReq);
     const capacityInt = parseInt(capacity);
@@ -283,7 +295,7 @@ class Routes {
     const start = new Date(startTimestamp);
     const end = new Date(endTimestamp);
 
-    const created = await Event.create(user, title, description, location, start, end, ageInt, capacityInt);
+    const created = await Event.create(user, title, description, location, start, end, ageInt, capacityInt, photo);
     await Location.create(created.id, "event", loc.lat, loc.lon, location);
     return { msg: created.msg, event: await Responses.event(created.event) };
   }
@@ -483,10 +495,16 @@ class Routes {
   // Message
 
   @Router.post("/message/:otherUser")
-  async sendMessage(session: WebSessionDoc, otherUser: string, text: string, files: string[]) {
+  async sendMessage(session: WebSessionDoc, otherUser: string, text: string, files?: string) {
     const sender = WebSession.getUser(session);
     const toId = (await User.getUserByUsername(otherUser))._id;
-    return await Message.send(sender, toId, text, files);
+    const filesArray = files
+      ? files
+          .split(",")
+          .map((e) => e.trim())
+          .filter((e) => e)
+      : [];
+    return await Message.send(sender, toId, text, filesArray);
   }
 
   @Router.get("/message/:otherUser")
@@ -552,7 +570,9 @@ class Routes {
     const userProfile = await Profile.getProfile(user);
     const userInterests = userProfile ? userProfile.interests : [];
 
-    const events = await Event.getEvents({ host: { $ne: user } }); // exclude posts by user
+    const timeNow = new Date();
+    // exclude posts by user and get events that have not ended
+    const events = await Event.getEvents({ host: { $ne: user }, endTime: { $gte: timeNow } });
 
     const eventDates = new Map(events.map((event) => [event._id.toString(), event.startTime]));
     const eventMap = new Map(events.map((event) => [event._id.toString(), event]));

@@ -17,13 +17,29 @@ export interface EventDoc extends BaseDoc {
   accommodations: string[];
   interested: ObjectId[];
   attending: ObjectId[];
+  photo: string;
 }
 
 export default class EventConcept {
   public readonly events = new DocCollection<EventDoc>("events");
 
-  async create(host: ObjectId, title: string, description: string, location: string, startTime: Date, endTime: Date, ageReq: number, capacity: number) {
-    const _id = await this.events.createOne({ host, title, description, startTime, endTime, location, ageReq, capacity, topics: [], amenities: [], accommodations: [], interested: [], attending: [] });
+  async create(host: ObjectId, title: string, description: string, location: string, startTime: Date, endTime: Date, ageReq: number, capacity: number, photo?: string) {
+    const _id = await this.events.createOne({
+      host,
+      title,
+      description,
+      startTime,
+      endTime,
+      location,
+      ageReq,
+      capacity,
+      topics: [],
+      amenities: [],
+      accommodations: [],
+      interested: [],
+      attending: [],
+      photo,
+    });
     return { msg: "Event successfully created!", id: _id, event: await this.events.readOne({ _id }) };
   }
 

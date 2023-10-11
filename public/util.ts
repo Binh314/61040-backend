@@ -54,6 +54,36 @@ const operations: operation[] = [
     fields: {},
   },
   {
+    name: "Get Current Location",
+    endpoint: "/api/location",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Update Current Location",
+    endpoint: "/api/location",
+    method: "PATCH",
+    fields: { address: "input" },
+  },
+  {
+    name: "Get All Messages",
+    endpoint: "/api/message/all",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Messages with User",
+    endpoint: "/api/message/:TargetUser",
+    method: "GET",
+    fields: { TargetUser: "input" },
+  },
+  {
+    name: "Send Message",
+    endpoint: "/api/message/:SendTo",
+    method: "POST",
+    fields: { SendTo: "input", text: "input", files: "input" },
+  },
+  {
     name: "Get Post Feed",
     endpoint: "/api/feed/posts",
     method: "GET",
@@ -76,6 +106,24 @@ const operations: operation[] = [
     endpoint: "/api/feed/eventmode/profiles",
     method: "GET",
     fields: {},
+  },
+  {
+    name: "Get Your Interested Events",
+    endpoint: "/api/events/interested",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get Your Attending Events",
+    endpoint: "/api/events/attending",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Create Post",
+    endpoint: "/api/posts",
+    method: "POST",
+    fields: { content: "input", files: "input", replyTo: "input" },
   },
   {
     name: "Get Users (empty for all)",
@@ -120,36 +168,6 @@ const operations: operation[] = [
     fields: { username: "input" },
   },
   {
-    name: "Update Current Location",
-    endpoint: "/api/location",
-    method: "PATCH",
-    fields: { address: "input" },
-  },
-  {
-    name: "Get Current Location",
-    endpoint: "/api/location",
-    method: "GET",
-    fields: {},
-  },
-  {
-    name: "Get Location from Id",
-    endpoint: "/api/location/poi/:id",
-    method: "GET",
-    fields: { id: "input" },
-  },
-  {
-    name: "Get Distance To (in meters)",
-    endpoint: "/api/location/distance/:destinationId",
-    method: "GET",
-    fields: { destinationId: "input" },
-  },
-  {
-    name: "Get Location from Address",
-    endpoint: "/api/location/address",
-    method: "GET",
-    fields: { address: "input" },
-  },
-  {
     name: "Get Events (empty for all)",
     endpoint: "/api/events",
     method: "GET",
@@ -180,18 +198,6 @@ const operations: operation[] = [
     fields: {},
   },
   {
-    name: "Get Your Interested Events",
-    endpoint: "/api/events/interested",
-    method: "GET",
-    fields: {},
-  },
-  {
-    name: "Get Your Attending Events",
-    endpoint: "/api/events/attending",
-    method: "GET",
-    fields: {},
-  },
-  {
     name: "Get Posts (empty for all)",
     endpoint: "/api/posts",
     method: "GET",
@@ -208,24 +214,6 @@ const operations: operation[] = [
     endpoint: "/api/posts/nearby",
     method: "GET",
     fields: { radius: "input" },
-  },
-  {
-    name: "Get Messages with User",
-    endpoint: "/api/message/:TargetUser",
-    method: "GET",
-    fields: { TargetUser: "input" },
-  },
-  {
-    name: "Get All Messages",
-    endpoint: "/api/message/all",
-    method: "GET",
-    fields: {},
-  },
-  {
-    name: "Send Message",
-    endpoint: "/api/message/:SendTo",
-    method: "POST",
-    fields: { SendTo: "input", text: "input" },
   },
   {
     name: "Indicate Event Interest",
@@ -252,22 +240,16 @@ const operations: operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Create Post",
-    endpoint: "/api/posts",
-    method: "POST",
-    fields: { content: "input", replyTo: "input" },
-  },
-  {
     name: "Update Post",
     endpoint: "/api/posts/:id",
     method: "PATCH",
-    fields: { id: "input", update: { content: "input", options: { backgroundColor: "input" } } },
+    fields: { id: "input", update: { content: "input", files: "input", replyTo: "input" } },
   },
   {
     name: "Create Event",
     endpoint: "/api/events",
     method: "POST",
-    fields: { title: "input", description: "input", location: "input", startTime: "input", endTime: "input", ageReq: "input", capacity: "input" },
+    fields: { title: "input", description: "input", location: "input", startTime: "input", endTime: "input", ageReq: "input", capacity: "input", photo: "input" },
   },
   {
     name: "Update Event",
@@ -275,7 +257,7 @@ const operations: operation[] = [
     method: "PATCH",
     fields: {
       id: "input",
-      update: { title: "input", description: "input", location: "input", ageReq: "input", capacity: "input" },
+      update: { title: "input", description: "input", location: "input", ageReq: "input", capacity: "input", photo: "input" },
       startTime: "input",
       endTime: "input",
     },
@@ -327,6 +309,24 @@ const operations: operation[] = [
     endpoint: "/api/events/:id",
     method: "DELETE",
     fields: { id: "input" },
+  },
+  {
+    name: "Get Location from Id",
+    endpoint: "/api/location/poi/:id",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
+    name: "Get Distance To (in meters)",
+    endpoint: "/api/location/distance/:destinationId",
+    method: "GET",
+    fields: { destinationId: "input" },
+  },
+  {
+    name: "Get Location from Address",
+    endpoint: "/api/location/address",
+    method: "GET",
+    fields: { address: "input" },
   },
 ];
 
